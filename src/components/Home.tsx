@@ -109,17 +109,11 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                 <section id={styles.header}>
                     <h1>Explore, Travel, Fly</h1>
                 </section>
+                <section id={styles.dateSelector}>
                 <section id={styles.locations}>
                     <MarketContext.Consumer>
                         {market =>
                         (<div className={styles.location}>
-                            <Autocomplete
-                                    id="country-selector"
-                                    className={styles.selector}
-                                    options={market.Countries}
-                                    getOptionLabel={(option) => option.Name}
-                                    renderInput={(params) => <TextField {...params} label="Country" />} 
-                                    onChange={this.handleCountryChange}/>
                              <CurrencyContext.Consumer>
                                 {currencies => <Autocomplete style={{width: '10ch'}}
                                     id="currency-selector"
@@ -130,6 +124,7 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                                     onChange={this.handleCurrencyChange}
                                 />}
                             </CurrencyContext.Consumer>
+                            <div className={styles.locationSelect}>
                             {["Origin", "Destination"].map(source => (
                             <div key={source}>
                                 <p>{source}</p>
@@ -147,11 +142,18 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                                         }
                                     }}
                                 />
+                                  {source==="Origin"&&<Autocomplete
+                                    id="country-selector"
+                                    className={styles.selector}
+                                    options={market.Countries}
+                                    getOptionLabel={(option) => option.Name}
+                                    renderInput={(params) => <TextField {...params} label="Country of Origin" />} 
+                                    onChange={this.handleCountryChange}/>}
                             </div>))}
-                        </div>)}
+                        </div>
+                        </div>)} 
                     </MarketContext.Consumer>
-                </section>
-                <section id={styles.dateSelector}>
+                    </section>
                     <span id="error" className={styles.error} >{this.state.error?.message.join(',')}</span>
                     <FormControl component="fieldset">
                         <FormLabel component="legend">Flight Type</FormLabel>
