@@ -3,12 +3,14 @@ import { CurrencyContext, MarketContext } from '.'
 import { IconButton, TextField, RadioGroup, FormControlLabel, Radio, FormLabel, FormControl } from '@material-ui/core'
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import AsyncSelect from 'react-select/async'
+import Axios from 'axios'
 
-import { DateError, Currency } from '../interfaces'
+import { Airport, Country, Currency, DateError } from '../interfaces'
 
 import SendIcon from '@material-ui/icons/Send'
 
 import styles from '../css/home.module.css'
+import { apiHeader } from './util/apiHeader'
 
 
 
@@ -18,6 +20,10 @@ interface HomeState{
     outbound: string,
     inbound: string,
     error?: DateError,
+    country: Country | null,
+    currency: Currency | null,
+    origin: Airport | null,
+    destination: Airport | null
 }
 
 type StateWrapper<T> = {
@@ -32,12 +38,29 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
         this.state = {
             roundtrip: true,
             outbound: '',
-            inbound: ''
+            inbound: '',
+            country: null,
+            currency: null,
+            origin: null,
+            destination: null
         }
     }
 
-    loadOptions = (input: string, callback: Function) => {
-        callback([]);
+    loadOptions = async (query: string) => {
+        const airports: Airport[] = await  Axios.get(
+                `${process.env.REACT_APP_API_URL}/autosuggest/v1.0/${this.state.country?.Code ?? 'US'}/${this.state.currency?.Code ?? 'USD'}/en-US/`
+                ,{
+                    headers: apiHeader,
+                    params: { query }
+                }).then(res => res.data.Places);
+        return airports.map(airport => ({
+            label: `${airport.PlaceId} - ${airport.PlaceName}`,
+            value: JSON.stringify(airport)
+        }));
+    }
+
+    handleCountryChange = (_: React.ChangeEvent<{}>, country: Country | null) => {
+        this.setState({ country });
     }
 
     handleFlightType = (event: React.ChangeEvent<HTMLInputElement>, value: string ) => {
@@ -47,6 +70,10 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
     handleDateChange = <K extends keyof HomeState>(type: K) => async (event: React.ChangeEvent<HTMLInputElement>) =>{
        await this.setState({...this.state, [type]: event.currentTarget.value} as StateWrapper<HomeState>);
        this.verifyDates();
+    }
+
+    handleCurrencyChange = (event: React.ChangeEvent<{}>, currency: Currency | null) => {
+        this.setState({ currency });
     }
 
     verifyDates = () => {
@@ -85,24 +112,43 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                 <section id={styles.locations}>
                     <MarketContext.Consumer>
                         {market =>
-                        (<>
+                        (<div className={styles.location}>
                             <Autocomplete
-                                id="country-selector"
-                                className={styles.selector}
-                                options={market.Countries?.map(i=>i.Code)}
-                                renderInput={(params) => <TextField {...params} label="Country" />} />
-
-                            <AsyncSelect
-                                cachedOptions
-                                loadOptions={this.loadOptions}
-                                defaultOptions
+                                    id="country-selector"
+                                    className={styles.selector}
+                                    options={market.Countries}
+                                    getOptionLabel={(option) => option.Name}
+                                    renderInput={(params) => <TextField {...params} label="Country" />} 
+                                    onChange={this.handleCountryChange}/>
+                             <CurrencyContext.Consumer>
+                                {currencies => <Autocomplete style={{width: '10ch'}}
+                                    id="currency-selector"
+                                    className={styles.selector}
+                                    options={currencies.Currencies}
+                                    getOptionLabel={(option) => option.Code}
+                                    renderInput={(params) => <TextField {...params} label="Currency" />}
+                                    onChange={this.handleCurrencyChange}
+                                />}
+                            </CurrencyContext.Consumer>
+                            {["Origin", "Destination"].map(source => (
+                            <div key={source}>
+                                <p>{source}</p>
+                                <AsyncSelect
+                                    cachedOptions
+                                    loadOptions={this.loadOptions}
+                                    onChange={(value, action) => {
+                                        switch(source){
+                                            case "Origin":
+                                                this.setState({ origin: JSON.parse(value?.value || '') as Airport})
+                                                break;
+                                            case "Destination":
+                                                this.setState({ destination: JSON.parse(value?.value || '') as Airport})
+                                                break;
+                                        }
+                                    }}
                                 />
-                            <AsyncSelect
-                                cachedOptions
-                                loadOptions={this.loadOptions}
-                                defaultOptions
-                                />
-                        </>)}
+                            </div>))}
+                        </div>)}
                     </MarketContext.Consumer>
                 </section>
                 <section id={styles.dateSelector}>
@@ -133,14 +179,6 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                             onChange={this.handleDateChange('inbound')}
                             value={this.state.inbound}
                         />}
-                        <CurrencyContext.Consumer>
-                            {currencies => <Autocomplete style={{width: '10ch'}}
-                                id="currency-selector"
-                                className={styles.selector}
-                                options={currencies.Currencies?.map( (i: Currency ) => i.Code)}
-                                renderInput={(params) => <TextField {...params} label="Currency" />}
-                            />}
-                        </CurrencyContext.Consumer>
                         <IconButton className={styles.submit}>
                             <SendIcon/>
                         </IconButton>

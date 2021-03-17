@@ -19,3 +19,18 @@ export interface Country{
     Code: string,
     Name: string
 }
+
+export interface Airport{
+    PlaceId: string,
+    PlaceName: string,
+    CountryId: string,
+    RegionId: string,
+    CityId: string,
+    CountryName: string
+}
+
+
+export interface Option{
+    label: string;
+    value: string;
+}
