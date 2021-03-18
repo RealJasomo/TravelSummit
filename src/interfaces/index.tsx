@@ -34,3 +34,25 @@ export interface Option{
     label: string;
     value: string;
 }
+
+export interface Carrier{
+    CarrierId: number,
+    Name: string
+}
+
+export interface Quote{
+    QuoteId: number,
+    MinPrice: Number,
+    Direct: boolean,
+    QuoteDateTime: string,
+    OutboundLeg: Leg,
+    InboundLeg?: Leg
+
+}
+
+export interface Leg{
+    CarrierIds: number[]
+    OriginId: number,
+    DestinationId: number,
+    DepartureDate: string
+}

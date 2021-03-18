@@ -35,11 +35,14 @@
 .dates{
     display: flex;
     flex-direction: row;
-    justify-content: space-evenly;
+    align-items: center ;
     margin: 1rem;
     width: 100%;
 }
 
+.date {
+    margin: 0 2rem !important;
+}
 
 #header{
     background: #D8D8D8;
@@ -53,8 +56,9 @@
 }
 
 .submit{
-    margin: 0 auto;
-    color: #5433FF;
+    justify-self: flex-end;
+    margin-right: 2rem;
+    color: #5433FF !important;
 }
 
 .locationSelect{
@@ -65,4 +69,16 @@
 
 #locations{
     width: 100%;
+    margin-bottom: 1rem;
+}
+
+.flightType {
+    margin-bottom: 1.5rem;
+}
+
+
+@media only screen and (max-width: 600px){
+    .dates{
+        flex-direction: column;
+    }
 }

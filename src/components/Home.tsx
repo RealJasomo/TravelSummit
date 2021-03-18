@@ -46,17 +46,16 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
         }
     }
 
-    loadOptions = async (query: string) => {
-        const airports: Airport[] = await  Axios.get(
+    loadOptions = (query: string) => {  
+        return Axios.get(
                 `${process.env.REACT_APP_API_URL}/autosuggest/v1.0/${this.state.country?.Code ?? 'US'}/${this.state.currency?.Code ?? 'USD'}/en-US/`
                 ,{
                     headers: apiHeader,
                     params: { query }
-                }).then(res => res.data.Places);
-        return airports.map(airport => ({
+                }).then(res => res.data.Places).then((airports : Airport[]) => airports.map(airport => ({
             label: `${airport.PlaceId} - ${airport.PlaceName}`,
             value: JSON.stringify(airport)
-        }));
+        })));
     }
 
     handleCountryChange = (_: React.ChangeEvent<{}>, country: Country | null) => {
@@ -110,25 +109,25 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                     <h1>Explore, Travel, Fly</h1>
                 </section>
                 <section id={styles.dateSelector}>
+                    <div className={styles.flightType}>
+                        <span id="error" className={styles.error} >{this.state.error?.message.join(',')}</span>
+                        <FormControl component="fieldset">
+                            <FormLabel component="legend">Flight Type</FormLabel>
+                            <RadioGroup aria-label="flight-type" name="flight-type" value={this.state.roundtrip} onChange={this.handleFlightType}>
+                                <FormControlLabel value={true} control={<Radio color="default" />} label="Roundtrip"/>
+                                <FormControlLabel value={false} control={<Radio color="default" />} label="One-way"/>
+                            </RadioGroup>
+                        </FormControl>
+                    </div>
                 <section id={styles.locations}>
                     <MarketContext.Consumer>
                         {market =>
                         (<div className={styles.location}>
-                             <CurrencyContext.Consumer>
-                                {currencies => <Autocomplete style={{width: '10ch'}}
-                                    id="currency-selector"
-                                    className={styles.selector}
-                                    options={currencies.Currencies}
-                                    getOptionLabel={(option) => option.Code}
-                                    renderInput={(params) => <TextField {...params} label="Currency" />}
-                                    onChange={this.handleCurrencyChange}
-                                />}
-                            </CurrencyContext.Consumer>
                             <div className={styles.locationSelect}>
                             {["Origin", "Destination"].map(source => (
                             <div key={source}>
-                                <p>{source}</p>
                                 <AsyncSelect
+                                    placeholder={`${source} airport`}
                                     cachedOptions
                                     loadOptions={this.loadOptions}
                                     onChange={(value, action) => {
@@ -154,16 +153,9 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                         </div>)} 
                     </MarketContext.Consumer>
                     </section>
-                    <span id="error" className={styles.error} >{this.state.error?.message.join(',')}</span>
-                    <FormControl component="fieldset">
-                        <FormLabel component="legend">Flight Type</FormLabel>
-                        <RadioGroup aria-label="flight-type" name="flight-type" value={this.state.roundtrip} onChange={this.handleFlightType}>
-                            <FormControlLabel value={true} control={<Radio color="default" />} label="Roundtrip"/>
-                            <FormControlLabel value={false} control={<Radio color="default" />} label="One-way"/>
-                        </RadioGroup>
-                    </FormControl>
                     <div className={styles.dates}>  
                         <TextField
+                            className={styles.date}
                             label="Outbound date"
                             type="date"
                             InputLabelProps={{
@@ -173,6 +165,7 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                             value={this.state.outbound}
                         />
                         {this.state.roundtrip&&<TextField
+                            className={styles.date}
                             label="Inbound date"
                             type="date"
                             InputLabelProps={{
@@ -181,6 +174,17 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                             onChange={this.handleDateChange('inbound')}
                             value={this.state.inbound}
                         />}
+                        <CurrencyContext.Consumer>
+                                {currencies => <Autocomplete style={{width: '10ch', margin: '1rem 0'}}
+                                    id="currency-selector"
+                                    className={styles.selector}
+                                    options={currencies.Currencies}
+                                    getOptionLabel={(option) => option.Code}
+                                    renderInput={(params) => <TextField {...params} label="Currency" />}
+                                    onChange={this.handleCurrencyChange}
+                                />}
+                            </CurrencyContext.Consumer>
+                        <span style={{flexGrow: 1}}/>
                         <IconButton className={styles.submit}>
                             <SendIcon/>
                         </IconButton>
