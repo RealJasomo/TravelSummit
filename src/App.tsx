@@ -1,22 +1,19 @@
 import React, { Component } from 'react'
 
-import { AppBar, Toolbar, IconButton, Typography } from '@material-ui/core'
+import { AppBar, Toolbar,  Typography } from '@material-ui/core'
 import { Home, CurrencyContextProvider, MarketContextProvider } from './components'
 
-import MenuIcon from '@material-ui/icons/Menu'
+import styles from './css/app.module.css'
 
 export default class App extends Component {
   render() {
     return (
       <MarketContextProvider>
         <CurrencyContextProvider>
-        <AppBar position="static">
+        <AppBar position="static" className={styles.appBar}>
           <Toolbar>
-            <IconButton edge="start" color="inherit">
-              <MenuIcon />
-            </IconButton>
             <Typography variant="h6">
-              Travel Tracker
+              Flight Tracker
             </Typography>
           </Toolbar>
         </AppBar>

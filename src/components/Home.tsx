@@ -1,13 +1,15 @@
 import React, { Component } from 'react'
-import { CurrencyContext, MarketContext } from '.'
+import { CurrencyContext, MarketContext, QuoteCard } from '.'
 import { IconButton, TextField, RadioGroup, FormControlLabel, Radio, FormLabel, FormControl } from '@material-ui/core'
 import Autocomplete from '@material-ui/lab/Autocomplete'
 import AsyncSelect from 'react-select/async'
 import Axios from 'axios'
 
-import { Airport, Country, Currency, DateError } from '../interfaces'
+import { Airport, Carrier, Country, Currency, DateError, Option, Quote } from '../interfaces'
 
 import SendIcon from '@material-ui/icons/Send'
+import SortIcon from '@material-ui/icons/Sort'
+import SwapHorizIcon from '@material-ui/icons/SwapHoriz'
 
 import styles from '../css/home.module.css'
 import { apiHeader } from './util/apiHeader'
@@ -22,8 +24,15 @@ interface HomeState{
     error?: DateError,
     country: Country | null,
     currency: Currency | null,
+    currencySubmitted: Currency | null,
     origin: Airport | null,
-    destination: Airport | null
+    destination: Airport | null,
+    quotes: Quote[] | null,
+    carriers: Carrier[] | null,
+    cheapestSort: boolean,
+    originOption: Option | null,
+    destinationOption: Option | null
+
 }
 
 type StateWrapper<T> = {
@@ -41,8 +50,14 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
             inbound: '',
             country: null,
             currency: null,
+            currencySubmitted: null,
             origin: null,
-            destination: null
+            destination: null,
+            quotes: null,
+            carriers: null,
+            cheapestSort: true,
+            originOption: null,
+            destinationOption: null
         }
     }
 
@@ -63,7 +78,16 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
     }
 
     handleFlightType = (event: React.ChangeEvent<HTMLInputElement>, value: string ) => {
-        this.setState({roundtrip: value==='true'});
+        this.setState({roundtrip: value==='true', inbound: ''});
+    }
+
+    handleAirportSwap = () =>{
+        this.setState({
+                        origin: this.state.destination, 
+                        destination: this.state.origin, 
+                        originOption: this.state.destinationOption,
+                        destinationOption: this.state.originOption
+                    })
     }
 
     handleDateChange = <K extends keyof HomeState>(type: K) => async (event: React.ChangeEvent<HTMLInputElement>) =>{
@@ -75,9 +99,21 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
         this.setState({ currency });
     }
 
+    handleToggleSort = () => {
+        this.setState({ cheapestSort: !this.state.cheapestSort});
+    }
+
+    handleGetQuotes = async () => {
+        await this.setState({currencySubmitted: this.state.currency, cheapestSort: true});
+        Axios.get(`${process.env.REACT_APP_API_URL}/browsequotes/v1.0/${this.state.country?.Code ?? 'US'}/${this.state.currency?.Code ?? 'USD'}/en-US/${this.state.origin?.PlaceId}/${this.state.destination?.PlaceId}/${this.state.outbound}/${this.state.inbound}`,{
+            headers: apiHeader
+        }).then(res => this.setState({quotes: res.data.Quotes as Quote[], carriers: res.data.Carriers as Carrier[]}));
+    }
+
     verifyDates = () => {
         var now = new Date();
-        var outbound = new Date(this.state.outbound);
+        var timezoneString = `T00:00:00.000${now.getTimezoneOffset() / 60}`
+        var outbound = new Date(`${this.state.outbound + timezoneString}`);
         var error: DateError= {
             inbound: false,
             outbound: false,
@@ -85,7 +121,7 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
         };
         
         if(this.state.roundtrip && this.state.inbound){
-            var inbound = new Date(this.state.inbound);
+            var inbound = new Date(`${this.state.inbound + timezoneString}`);
             if(inbound < outbound){
                 error.inbound = true;
                 error.message.push('Outbound flight must occur before the inbound flight');
@@ -104,13 +140,11 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
 
     render() {
         return (
-            <div>
-                <section id={styles.header}>
-                    <h1>Explore, Travel, Fly</h1>
-                </section>
-                <section id={styles.dateSelector}>
+            <div className={styles.home}>
+                <div className={styles.spacer}/>
+                <section id={styles.card}>
+                    <div id="error" className={styles.error} >{this.state.error?.message.join(',')}</div>
                     <div className={styles.flightType}>
-                        <span id="error" className={styles.error} >{this.state.error?.message.join(',')}</span>
                         <FormControl component="fieldset">
                             <FormLabel component="legend">Flight Type</FormLabel>
                             <RadioGroup aria-label="flight-type" name="flight-type" value={this.state.roundtrip} onChange={this.handleFlightType}>
@@ -123,6 +157,12 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                     <MarketContext.Consumer>
                         {market =>
                         (<div className={styles.location}>
+                            <div className={styles.swap}>
+                                <IconButton onClick={this.handleAirportSwap}>
+                                    <SwapHorizIcon/>
+                                </IconButton>
+                                <p onClick={this.handleAirportSwap}>Swap Airports</p>
+                            </div>
                             <div className={styles.locationSelect}>
                             {["Origin", "Destination"].map(source => (
                             <div key={source}>
@@ -130,24 +170,27 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                                     placeholder={`${source} airport`}
                                     cachedOptions
                                     loadOptions={this.loadOptions}
-                                    onChange={(value, action) => {
+                                    value={source==='Origin'?this.state.originOption:this.state.destinationOption}
+                                    onChange={(value: Option | null, action) => {
                                         switch(source){
                                             case "Origin":
-                                                this.setState({ origin: JSON.parse(value?.value || '') as Airport})
+                                                this.setState({ originOption: value,origin: JSON.parse(value?.value || '') as Airport})
                                                 break;
                                             case "Destination":
-                                                this.setState({ destination: JSON.parse(value?.value || '') as Airport})
+                                                this.setState({ destinationOption: value,destination: JSON.parse(value?.value || '') as Airport})
                                                 break;
                                         }
                                     }}
                                 />
-                                  {source==="Origin"&&<Autocomplete
+                                  {source==="Origin"&&<><Autocomplete
                                     id="country-selector"
                                     className={styles.selector}
                                     options={market.Countries}
                                     getOptionLabel={(option) => option.Name}
                                     renderInput={(params) => <TextField {...params} label="Country of Origin" />} 
-                                    onChange={this.handleCountryChange}/>}
+                                    onChange={this.handleCountryChange}/>
+                                   
+                                    </>}
                             </div>))}
                         </div>
                         </div>)} 
@@ -185,11 +228,26 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                                 />}
                             </CurrencyContext.Consumer>
                         <span style={{flexGrow: 1}}/>
-                        <IconButton className={styles.submit}>
+                        <IconButton className={styles.submit} onClick={this.handleGetQuotes}>
                             <SendIcon/>
                         </IconButton>
                     </div>
-                </section>        
+                </section>  
+                {this.state.quotes&&
+                    <section id={styles.Quotes}>
+                        {this.state.quotes.length > 1?<>
+                        <IconButton onClick={this.handleToggleSort}>
+                            <SortIcon/>
+                        </IconButton>  
+                        {this.state.quotes.sort((a: Quote, b: Quote) => (this.state.cheapestSort?1:-1)*(a.MinPrice - b.MinPrice))
+                            .map((quote: Quote, idx: number) => {
+                                if(idx === 0 && this.state.cheapestSort){
+                                    quote.cheapest = true;
+                                }
+                                return (<QuoteCard key={idx} {...quote} carriers={this.state.carriers} currency={this.state.currencySubmitted}/>)
+                        })}
+                        </>:<p className={styles.noAvailable}>No quotes avaliable for the selected dates</p>}
+                    </section>}     
             </div>
         )
     }

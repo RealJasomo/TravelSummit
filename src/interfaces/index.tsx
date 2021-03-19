@@ -42,11 +42,12 @@ export interface Carrier{
 
 export interface Quote{
     QuoteId: number,
-    MinPrice: Number,
+    MinPrice: number,
     Direct: boolean,
     QuoteDateTime: string,
     OutboundLeg: Leg,
-    InboundLeg?: Leg
+    InboundLeg?: Leg,
+    cheapest?: boolean
 
 }
 
