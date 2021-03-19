@@ -21,17 +21,17 @@ interface HomeState{
     roundtrip: boolean,
     outbound: string,
     inbound: string,
-    error?: DateError,
+    airportError?: string,
+    dateError?: DateError,
     country: Country | null,
     currency: Currency | null,
     currencySubmitted: Currency | null,
-    origin: Airport | null,
-    destination: Airport | null,
+    origin: Option<Airport> | null,
+    destination: Option<Airport> | null,
     quotes: Quote[] | null,
     carriers: Carrier[] | null,
     cheapestSort: boolean,
-    originOption: Option | null,
-    destinationOption: Option | null
+
 
 }
 
@@ -56,8 +56,6 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
             quotes: null,
             carriers: null,
             cheapestSort: true,
-            originOption: null,
-            destinationOption: null
         }
     }
 
@@ -69,7 +67,7 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                     params: { query }
                 }).then(res => res.data.Places).then((airports : Airport[]) => airports.map(airport => ({
             label: `${airport.PlaceId} - ${airport.PlaceName}`,
-            value: JSON.stringify(airport)
+            value: airport
         })));
     }
 
@@ -85,8 +83,6 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
         this.setState({
                         origin: this.state.destination, 
                         destination: this.state.origin, 
-                        originOption: this.state.destinationOption,
-                        destinationOption: this.state.originOption
                     })
     }
 
@@ -104,8 +100,27 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
     }
 
     handleGetQuotes = async () => {
+        if(!this.state.origin ||  !this.state.destination){
+            this.setState({airportError: `Airports must be selected`});
+            return;
+        }
+        var error: DateError;
+        if(!this.state.outbound){
+            error = this.state.dateError ?? {inbound: false, message: [], outbound: false};
+            error.outbound = true;
+            error.message.push('Outbound date is required');
+            this.setState({dateError: error});
+            return;
+        }
+        if(!this.state.inbound && this.state.roundtrip){
+            error = this.state.dateError ?? {inbound: false, message: [], outbound: false};
+            error.inbound = true;
+            error.message.push('Inbound date is required for roundtrip');
+            this.setState({dateError: error});
+            return;
+        }
         await this.setState({currencySubmitted: this.state.currency, cheapestSort: true});
-        Axios.get(`${process.env.REACT_APP_API_URL}/browsequotes/v1.0/${this.state.country?.Code ?? 'US'}/${this.state.currency?.Code ?? 'USD'}/en-US/${this.state.origin?.PlaceId}/${this.state.destination?.PlaceId}/${this.state.outbound}/${this.state.inbound}`,{
+        Axios.get(`${process.env.REACT_APP_API_URL}/browsequotes/v1.0/${this.state.country?.Code ?? 'US'}/${this.state.currency?.Code ?? 'USD'}/en-US/${this.state.origin?.value.PlaceId}/${this.state.destination?.value.PlaceId}/${this.state.outbound}/${this.state.inbound}`,{
             headers: apiHeader
         }).then(res => this.setState({quotes: res.data.Quotes as Quote[], carriers: res.data.Carriers as Carrier[]}));
     }
@@ -135,7 +150,7 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
             error.outbound = true;
             error.message.push('Outbound flight must occur in the future');
         }
-        this.setState({error, inbound:(error.inbound?'':this.state.inbound), outbound:(error.outbound?'':this.state.outbound)});
+        this.setState({dateError: error, inbound:(error.inbound?'':this.state.inbound), outbound:(error.outbound?'':this.state.outbound)});
     }
 
     render() {
@@ -143,7 +158,10 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
             <div className={styles.home}>
                 <div className={styles.spacer}/>
                 <section id={styles.card}>
-                    <div id="error" className={styles.error} >{this.state.error?.message.join(',')}</div>
+                    {(this.state.airportError||((this.state.dateError?.message?.length ?? 0) > 0))&&<div id="error" className={styles.error} >
+                        <p>{this.state.dateError?.message.join(',')}</p> 
+                        <p>{this.state.airportError}</p>
+                    </div>}
                     <div className={styles.flightType}>
                         <FormControl component="fieldset">
                             <FormLabel component="legend">Flight Type</FormLabel>
@@ -170,14 +188,14 @@ export default class Home extends Component<{}, StateWrapper<HomeState>> {
                                     placeholder={`${source} airport`}
                                     cachedOptions
                                     loadOptions={this.loadOptions}
-                                    value={source==='Origin'?this.state.originOption:this.state.destinationOption}
-                                    onChange={(value: Option | null, action) => {
+                                    value={source==='Origin'?this.state.origin:this.state.destination}
+                                    onChange={(value: Option<Airport> | null, action) => {
                                         switch(source){
                                             case "Origin":
-                                                this.setState({ originOption: value,origin: JSON.parse(value?.value || '') as Airport})
+                                                this.setState({ origin: value, airportError: ''})
                                                 break;
                                             case "Destination":
-                                                this.setState({ destinationOption: value,destination: JSON.parse(value?.value || '') as Airport})
+                                                this.setState({destination:  value, airportError: ''})
                                                 break;
                                         }
                                     }}

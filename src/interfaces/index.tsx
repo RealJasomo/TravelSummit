@@ -30,9 +30,9 @@ export interface Airport{
 }
 
 
-export interface Option{
+export interface Option<T>{
     label: string;
-    value: string;
+    value: T;
 }
 
 export interface Carrier{

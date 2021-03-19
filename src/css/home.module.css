@@ -6,7 +6,7 @@
 
 .home{
     background: linear-gradient(to bottom,#4286F4 15%, #373B44 30%, white 0%);
-    height: 100vh;
+    height: 90vh;
     overflow: auto;
 }
 
@@ -75,6 +75,7 @@
 }
 
 .noAvailable{
+    margin-top: 2rem;
     text-align: center;
     font-weight: 300;
     font-style: italic;
